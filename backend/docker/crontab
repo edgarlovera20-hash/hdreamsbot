@@ -1,0 +1,3 @@
+0 */6 * * * php /var/www/hdreams-backend/workers/RecalculateScores.php >> /var/log/hdreams-scoring.log 2>&1
+* * * * * php /var/www/hdreams-backend/workers/ProcessLeadAds.php >> /var/log/hdreams-leads.log 2>&1
+*/5 * * * * php /var/www/hdreams-backend/workers/PublishFacebookPost.php >> /var/log/hdreams-posts.log 2>&1

@@ -1,0 +1,14 @@
+# Credenciales — NUNCA subir
+.env
+backend/.env
+
+# Dependencias
+node_modules/
+frontend/node_modules/
+backend/vendor/
+
+# Build
+frontend/dist/
+
+# Logs
+*.log

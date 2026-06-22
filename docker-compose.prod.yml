@@ -1,0 +1,17 @@
+services:
+  worker:
+    command: >
+      sh -c "
+      (while true; do php /var/www/hdreams-backend/workers/ProcessLeadAds.php     >> /var/log/hdreams-leads.log   2>&1; sleep 60;    done) &
+      (while true; do php /var/www/hdreams-backend/workers/PublishFacebookPost.php >> /var/log/hdreams-posts.log   2>&1; sleep 300;   done) &
+      (while true; do php /var/www/hdreams-backend/workers/RecalculateScores.php   >> /var/log/hdreams-scoring.log 2>&1; sleep 21600; done) &
+      wait"
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend:/var/www/hdreams-backend:ro
+      - ./nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro

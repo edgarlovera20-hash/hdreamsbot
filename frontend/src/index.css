@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans bg-bg text-text antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Scrollbar personalizado */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-textSubtle;
+  }
+
+  h1 { @apply font-display text-3xl font-bold text-text; }
+  h2 { @apply font-display text-2xl font-semibold text-text; }
+  h3 { @apply font-display text-xl font-semibold text-text; }
+  p  { @apply text-textMuted leading-relaxed; }
+}
+
+@layer components {
+  .metric {
+    @apply font-display text-4xl font-bold text-primary tabular-nums;
+  }
+
+  .card {
+    @apply bg-surface border border-border rounded-xl p-6
+           hover:border-primary/40 transition-colors duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-primary hover:bg-primaryHover text-white
+           px-4 py-2 rounded-lg text-sm font-medium
+           transition-colors duration-150 focus:outline-none
+           focus:ring-2 focus:ring-primary/50;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-surfaceHover text-textMuted hover:text-text
+           px-3 py-1.5 rounded-lg text-sm font-medium
+           transition-colors duration-150 border border-border;
+  }
+}
