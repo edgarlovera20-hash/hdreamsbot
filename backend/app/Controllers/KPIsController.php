@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Middleware\AuthMiddleware;
+
 class KPIsController
 {
     private \mysqli $db;
@@ -20,6 +22,7 @@ class KPIsController
         $canal      = $this->safeEnum($_GET['canal'] ?? null, ['whatsapp','messenger','instagram','facebook','gmail','outlook','teams','telegram']);
 
         if (!$empresa_id) { $this->json(['error' => 'empresa_id requerido'], 400); return; }
+        AuthMiddleware::assertCompanyAccess($empresa_id);
 
         $this->json([
             'periodo'       => ['desde' => $desde, 'hasta' => $hasta, 'canal' => $canal],
@@ -39,6 +42,7 @@ class KPIsController
         $limite     = min((int) ($_GET['limite'] ?? 20), 100);
 
         if (!$empresa_id) { $this->json(['error' => 'empresa_id requerido'], 400); return; }
+        AuthMiddleware::assertCompanyAccess($empresa_id);
 
         $where = "l.empresa_id = $empresa_id AND l.estado NOT IN ('rechazado','no_interesado','contratado')";
         if ($prioridad) $where .= " AND l.prioridad = '$prioridad'";
@@ -74,6 +78,7 @@ class KPIsController
         $canal      = $this->safeEnum($_GET['canal'] ?? null, ['whatsapp','messenger','instagram','facebook','gmail','outlook','teams']);
 
         if (!$empresa_id) { $this->json(['error' => 'empresa_id requerido'], 400); return; }
+        AuthMiddleware::assertCompanyAccess($empresa_id);
 
         $where = "empresa_id = $empresa_id AND fecha = '$fecha'";
         if ($canal) $where .= " AND canal = '$canal'";
@@ -92,6 +97,7 @@ class KPIsController
     {
         $empresa_id = (int) ($_GET['empresa_id'] ?? 0);
         if (!$empresa_id) { $this->json(['error' => 'empresa_id requerido'], 400); return; }
+        AuthMiddleware::assertCompanyAccess($empresa_id);
 
         $sql = "SELECT t.id, t.nombre, t.tipo, t.activo, t.fecha_inicio, t.fecha_fin,
                        v.id AS variante_id, v.nombre AS variante, v.porcentaje_trafico,
@@ -222,6 +228,7 @@ class KPIsController
         $seccion_id = (int) ($_GET['seccion_id'] ?? 0);
 
         if (!$empresa_id) { $this->json(['error' => 'empresa_id requerido'], 400); return; }
+        AuthMiddleware::assertCompanyAccess($empresa_id);
 
         $where = "empresa_id = $empresa_id AND fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
         if ($seccion_id) $where .= " AND seccion_id = $seccion_id";

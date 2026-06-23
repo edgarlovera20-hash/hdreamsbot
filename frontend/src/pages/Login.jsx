@@ -1,95 +1,60 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 
 export default function Login() {
-  const { login }          = useAuth();
-  const navigate           = useNavigate();
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [error,    setError]    = useState('');
-  const [loading,  setLoading]  = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await login(email, password);
-      navigate('/', { replace: true });
-    } catch (err) {
-      setError(err.response?.data?.error ?? 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { login } = useSession();
+  const [email, setEmail] = useState('operaciones@heavenlydreams.mx');
+  const [password, setPassword] = useState('Cambio123!');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-surface border border-border rounded-2xl p-8 shadow-xl">
-
-          {/* Header */}
-          <div className="mb-8">
-            <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase mb-3">
-              HDreams Control
-            </p>
-            <h1 className="text-2xl font-bold text-text mb-2">Acceso operativo</h1>
-            <p className="text-sm text-textMuted leading-relaxed">
-              Inicia sesión para entrar a tu cartera multiempresa y al panel ejecutivo.
-            </p>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold tracking-widest text-textMuted uppercase">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="correo@empresa.com"
-                required
-                className="w-full px-4 py-3 rounded-lg bg-bg border border-border text-text text-sm
-                           placeholder:text-textSubtle focus:outline-none focus:border-primary/60
-                           transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold tracking-widest text-textMuted uppercase">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••"
-                required
-                className="w-full px-4 py-3 rounded-lg bg-bg border border-border text-text text-sm
-                           placeholder:text-textSubtle focus:outline-none focus:border-primary/60
-                           transition-colors"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-danger text-center">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-lg bg-primary hover:bg-primaryHover text-white text-sm
-                         font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Entrando…' : 'Entrar al panel'}
-            </button>
-          </form>
-
+    <div className="min-h-screen bg-bg flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-surface p-8 shadow-2xl shadow-black/10">
+        <div className="mb-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-primary">HDreams Control</p>
+          <h1 className="mt-3 font-display text-3xl font-bold text-text">Acceso operativo</h1>
+          <p className="mt-2 text-sm text-textMuted">Inicia sesión para entrar a tu cartera multiempresa y al panel ejecutivo.</p>
         </div>
-        <p className="text-center text-xs text-textSubtle mt-6">v1.0.0 · HDreams 2026</p>
+
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setError('');
+            setIsSubmitting(true);
+            try {
+              await login({ email, password });
+            } catch (submissionError) {
+              setError(submissionError?.response?.data?.error ?? 'No se pudo iniciar sesión.');
+            } finally {
+              setIsSubmitting(false);
+            }
+          }}
+        >
+          <div>
+            <label className="block text-xs uppercase tracking-wide text-textSubtle mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm text-text focus:outline-none focus:border-primary/60"
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wide text-textSubtle mb-2">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm text-text focus:outline-none focus:border-primary/60"
+            />
+          </div>
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Entrando...' : 'Entrar al panel'}
+          </button>
+        </form>
       </div>
     </div>
   );

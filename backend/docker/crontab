@@ -1,3 +1,6 @@
 0 */6 * * * php /var/www/hdreams-backend/workers/RecalculateScores.php >> /var/log/hdreams-scoring.log 2>&1
 * * * * * php /var/www/hdreams-backend/workers/ProcessLeadAds.php >> /var/log/hdreams-leads.log 2>&1
 */5 * * * * php /var/www/hdreams-backend/workers/PublishFacebookPost.php >> /var/log/hdreams-posts.log 2>&1
+*/10 * * * * php /var/www/hdreams-backend/workers/SlaAlertWorker.php >> /var/log/hdreams-sla-alerts.log 2>&1
+*/5 * * * * php /var/www/hdreams-backend/workers/WorkflowAutomationWorker.php >> /var/log/hdreams-workflow.log 2>&1
+*/10 * * * * php /var/www/hdreams-backend/workers/AutoAssignWorker.php >> /var/log/hdreams-auto-assign.log 2>&1

@@ -10,10 +10,9 @@ import {
   Legend,
 } from 'chart.js';
 import { fetchAbTests, fetchKPIs } from '../lib/api';
+import { useSession } from '../context/SessionContext';
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Tooltip, Legend);
-
-const EMPRESA = 1;
 
 const DOUGHNUT_OPTS = {
   responsive: true,
@@ -31,15 +30,18 @@ const BAR_OPTS = {
 };
 
 export default function Stats() {
+  const { activeCompanyId: empresaId } = useSession();
   const { data: kpis } = useQuery({
-    queryKey:  ['kpis-stats', EMPRESA],
-    queryFn:   () => fetchKPIs({ empresa_id: EMPRESA }),
+    queryKey:  ['kpis-stats', empresaId],
+    queryFn:   () => fetchKPIs({ empresa_id: empresaId }),
+    enabled: Boolean(empresaId),
     staleTime: 120_000,
   });
 
   const { data: abData } = useQuery({
-    queryKey:  ['ab-tests', EMPRESA],
-    queryFn:   () => fetchAbTests({ empresa_id: EMPRESA }),
+    queryKey:  ['ab-tests', empresaId],
+    queryFn:   () => fetchAbTests({ empresa_id: empresaId }),
+    enabled: Boolean(empresaId),
     staleTime: 120_000,
   });
 

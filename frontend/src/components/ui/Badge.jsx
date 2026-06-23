@@ -21,6 +21,9 @@ const STYLES = {
   instagram:           'bg-alta/15 text-alta border border-alta/30',
   facebook:            'bg-primary/15 text-primary border border-primary/30',
   telegram:            'bg-info/20 text-info border border-info/40',
+  gmail:               'bg-danger/15 text-danger border border-danger/30',
+  outlook:             'bg-info/15 text-info border border-info/30',
+  teams:               'bg-primary/15 text-primary border border-primary/30',
 };
 
 const LABELS = {
@@ -41,6 +44,9 @@ const LABELS = {
   instagram:            'Instagram',
   facebook:             'Facebook',
   telegram:             'Telegram',
+  gmail:                'Gmail',
+  outlook:              'Outlook',
+  teams:                'Teams',
 };
 
 const DOT = {
@@ -61,6 +67,9 @@ const DOT = {
   instagram:            'bg-alta',
   facebook:             'bg-primary',
   telegram:             'bg-info',
+  gmail:                'bg-danger',
+  outlook:              'bg-info',
+  teams:                'bg-primary',
 };
 
 export const Badge = ({ value, showDot = true, className = '' }) => {

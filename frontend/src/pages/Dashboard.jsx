@@ -1,27 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchKPIs, fetchHorasPico, fetchCola } from '../lib/api';
-import { KPIGrid }    from '../components/dashboard/KPIGrid';
+import { KPIGrid } from '../components/dashboard/KPIGrid';
 import { HoursChart } from '../components/dashboard/HoursChart';
-import { LeadQueue }  from '../components/dashboard/LeadQueue';
+import { LeadQueue } from '../components/dashboard/LeadQueue';
+import { useSession } from '../context/SessionContext';
+import { useProductionSimulator } from '../context/ProductionSimulatorContext';
 
-export default function Dashboard({ empresaId = 1, seccionId = 1 }) {
+export default function Dashboard({ seccionId = 1 }) {
+  const { activeCompanyId: empresaId } = useSession();
+  const { enabled, scenarioMeta, liveMetrics, simulateRequest, simulateKpis, simulateHoursPico, simulateQueue } = useProductionSimulator();
   const params = { empresa_id: empresaId, seccion_id: seccionId };
 
   const { data: kpis, isLoading, isError } = useQuery({
-    queryKey:        ['kpis', empresaId, seccionId],
-    queryFn:         () => fetchKPIs(params),
+    queryKey: ['kpis', empresaId, seccionId, enabled, scenarioMeta.label],
+    queryFn: () => simulateRequest(() => fetchKPIs(params)).then(simulateKpis),
+    enabled: Boolean(empresaId),
     refetchInterval: 60_000,
   });
 
   const { data: horasPico } = useQuery({
-    queryKey:        ['horas-pico', empresaId, seccionId],
-    queryFn:         () => fetchHorasPico(params),
+    queryKey: ['horas-pico', empresaId, seccionId, enabled, scenarioMeta.label],
+    queryFn: () => simulateRequest(() => fetchHorasPico(params)).then(simulateHoursPico),
+    enabled: Boolean(empresaId),
     refetchInterval: 300_000,
   });
 
   const { data: cola } = useQuery({
-    queryKey:        ['cola', empresaId],
-    queryFn:         () => fetchCola({ empresa_id: empresaId, limite: 20 }).then((d) => d?.leads ?? d),
+    queryKey: ['cola', empresaId, enabled, scenarioMeta.label],
+    queryFn: () => simulateRequest(() => fetchCola({ empresa_id: empresaId, limite: 20 }).then((d) => d?.leads ?? d)).then(simulateQueue),
+    enabled: Boolean(empresaId),
     refetchInterval: 30_000,
   });
 
@@ -43,16 +50,25 @@ export default function Dashboard({ empresaId = 1, seccionId = 1 }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-text">Dashboard</h1>
-        <p className="text-sm text-textMuted">Métricas en tiempo real · {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-text">Dashboard</h1>
+          <p className="text-sm text-textMuted">Métricas en tiempo real · {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        {enabled && (
+          <div className="flex flex-wrap gap-2 text-xs text-textMuted">
+            <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">{scenarioMeta.label}</span>
+            <span className="rounded-full border border-border px-2.5 py-1 bg-surfaceHover text-text">{liveMetrics.requestsPerMinute} rpm</span>
+            <span className="rounded-full border border-border px-2.5 py-1 bg-surfaceHover text-text">SLA risk {liveMetrics.slaRisk}%</span>
+          </div>
+        )}
       </div>
 
       <KPIGrid data={kpis} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <HoursChart data={horasPico ?? []} />
-        <LeadQueue  leads={Array.isArray(cola) ? cola : []} />
+        <LeadQueue leads={Array.isArray(cola) ? cola : []} />
       </div>
     </div>
   );

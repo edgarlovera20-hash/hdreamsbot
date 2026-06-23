@@ -20,10 +20,23 @@ return [
         'timeout'     => 20,
     ],
 
+    'ai' => require __DIR__ . '/ai.php',
+
     'meta' => [
         'verify_token' => $_ENV['META_VERIFY_TOKEN'] ?? '',
         'app_secret'   => $_ENV['META_APP_SECRET']   ?? '',
         'graph_url'    => 'https://graph.facebook.com/v25.0',
+    ],
+
+    'reporting' => [
+        'python_bin' => $_ENV['REPORT_PYTHON_BIN'] ?? 'python',
+        'output_dir' => __DIR__ . '/../output/pdf',
+        'tmp_dir' => __DIR__ . '/../tmp/pdfs',
+    ],
+
+    'uploads' => [
+        'voice_dir' => __DIR__ . '/../storage/voice-notes',
+        'knowledge_dir' => __DIR__ . '/../storage/knowledge',
     ],
 
     'whatsapp' => [

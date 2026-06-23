@@ -1,6 +1,7 @@
 # Credenciales — NUNCA subir
 .env
 backend/.env
+frontend/.env.local
 
 # Dependencias
 node_modules/
@@ -10,6 +11,8 @@ backend/vendor/
 
 # Build
 frontend/dist/
+output/
+tmp/
 
 # Logs
 *.log

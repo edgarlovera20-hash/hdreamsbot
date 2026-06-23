@@ -3,8 +3,22 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Settings, Copy, Check, ExternalLink, Smartphone, Globe, Key,
   Facebook, CheckCircle2, XCircle, AlertCircle, Loader2,
+  Network, Bot, Brain,
 } from 'lucide-react';
 import { fetchConfig, fetchMetaStatus } from '../lib/api';
+
+function ModuleLink({ href, icon: Icon, title, description }) {
+  return (
+    <a href={href} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group">
+      <Icon size={15} className="text-primary shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">{title}</p>
+        <p className="text-xs text-textSubtle truncate">{description}</p>
+      </div>
+      <ExternalLink size={11} className="text-textSubtle" />
+    </a>
+  );
+}
 
 function CopyField({ label, value }) {
   const [copied, setCopied] = useState(false);
@@ -131,6 +145,18 @@ export default function Configuracion() {
         <h1 className="text-xl font-bold text-text">Configuración</h1>
       </div>
 
+      {/* Módulos de configuración */}
+      <Section icon={Settings} title="Módulos">
+        <div className="space-y-2">
+          <ModuleLink href="/canales" icon={Network} title="Canales de comunicación"
+            description="WhatsApp, Instagram, Messenger, Facebook Pages, Telegram" />
+          <ModuleLink href="/bot" icon={Bot} title="Configuración del Bot"
+            description="Saludo, horario, escalación, mensajes automáticos" />
+          <ModuleLink href="/agentes" icon={Brain} title="Agentes de IA"
+            description="Responder, Scorer, Classifier, Extractor — prompts y modelos LLM" />
+        </div>
+      </Section>
+
       {/* Meta OAuth */}
       <MetaSection />
 
@@ -138,6 +164,7 @@ export default function Configuracion() {
       <Section icon={Globe} title="Webhooks Meta (WhatsApp Cloud API)">
         <div className="space-y-3">
           <CopyField label="WhatsApp Cloud API"     value={`${BASE}/webhook-whatsapp.php`} />
+          <CopyField label="Instagram"              value={`${BASE}/webhook-instagram.php`} />
           <CopyField label="Messenger / Facebook"    value={`${BASE}/webhook-messenger.php`} />
           <CopyField label="Lead Ads (formularios)"  value={`${BASE}/webhook-lead-ads.php`} />
         </div>
