@@ -15,8 +15,8 @@ const pino      = require('pino');
 
 const app    = express();
 const PORT   = 4000;
-const API_URL    = process.env.PHP_API_URL  || 'http://nginx:8080';
-const SECRET     = process.env.BAILEYS_SECRET || '';
+const API_URL = process.env.PHP_API_URL   || 'http://nginx:8080';
+const SECRET  = process.env.BAILEYS_SECRET || '';
 const logger     = pino({ level: 'warn' });
 
 app.use(express.json());
@@ -126,18 +126,95 @@ app.post('/send', async (req, res) => {
   }
 });
 
-// Meta OAuth callback
-app.get('/auth/meta/callback', (req, res) => {
-  console.log('[meta-oauth] callback recibido:', req.query);
-  if (req.query.error) {
-    return res.status(400).send(`<h1>Error OAuth</h1><pre>${req.query.error_description ?? req.query.error}</pre>`);
+// Meta OAuth callback — intercambia code → token largo → guarda en DB
+app.get('/auth/meta/callback', async (req, res) => {
+  const { code, error, error_description } = req.query;
+  console.log('[meta-oauth] callback:', { code: !!code, error });
+
+  if (error) {
+    return res.status(400).send(
+      `<html><body style="font-family:sans-serif;text-align:center;padding:60px">
+       <h1 style="color:#ef4444">Error de autorización</h1>
+       <p>${error_description ?? error}</p></body></html>`
+    );
   }
-  // Si es prueba de ruta (sin code)
-  if (!req.query.code) {
-    return res.send('Meta OAuth OK');
+
+  // Prueba de ruta sin code (verificación de URL desde Meta)
+  if (!code) return res.send('Meta OAuth OK');
+
+  const APP_ID     = process.env.META_APP_ID     || '';
+  const APP_SECRET = process.env.META_APP_SECRET  || '';
+  const REDIRECT   = process.env.META_REDIRECT_URI || 'https://bot.heavenlydreams.com.mx/auth/meta/callback';
+
+  if (!APP_ID || !APP_SECRET) {
+    return res.status(500).send('<h1>Error: META_APP_ID o META_APP_SECRET no configurados</h1>');
   }
-  // TODO: intercambiar code por access token y guardarlo en DB
-  res.send(`<h1>Conexión Meta completada</h1><pre>${JSON.stringify(req.query, null, 2)}</pre>`);
+
+  try {
+    // 1. Code → token de corta duración
+    const shortRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+      params: { client_id: APP_ID, client_secret: APP_SECRET, redirect_uri: REDIRECT, code },
+    });
+    const shortToken = shortRes.data.access_token;
+
+    // 2. Token corto → token largo (60 días)
+    const longRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+      params: {
+        grant_type:       'fb_exchange_token',
+        client_id:        APP_ID,
+        client_secret:    APP_SECRET,
+        fb_exchange_token: shortToken,
+      },
+    });
+    const longToken = longRes.data.access_token;
+    const expiresIn = longRes.data.expires_in ?? 5184000;
+
+    // 3. Info del usuario + páginas administradas
+    const [userRes, pagesRes] = await Promise.all([
+      axios.get('https://graph.facebook.com/me', {
+        params: { access_token: longToken, fields: 'id,name,email' },
+      }),
+      axios.get('https://graph.facebook.com/me/accounts', {
+        params: { access_token: longToken, fields: 'id,name,access_token,category' },
+      }),
+    ]);
+
+    const pages = pagesRes.data.data ?? [];
+
+    // 4. Guardar en DB via PHP (puerto interno nginx:8080)
+    await axios.post(`${API_URL}/webhook-meta-token.php`, {
+      user_id:      userRes.data.id,
+      user_name:    userRes.data.name,
+      access_token: longToken,
+      expires_in:   expiresIn,
+      pages,
+    }, {
+      headers: { 'X-Baileys-Secret': SECRET },
+      timeout: 15_000,
+    });
+
+    console.log(`[meta-oauth] ✓ Token guardado para ${userRes.data.name} (${pages.length} páginas)`);
+
+    res.send(`
+      <html>
+      <body style="font-family:sans-serif;text-align:center;padding:60px;background:#0f172a;color:#e2e8f0">
+        <h1 style="color:#22c55e;font-size:2em">✅ Meta conectado</h1>
+        <p style="font-size:1.1em">Conectado como <strong>${userRes.data.name}</strong></p>
+        ${pages.length ? `<p>${pages.length} página(s) encontrada(s): ${pages.map(p => p.name).join(', ')}</p>` : ''}
+        <p style="color:#64748b;margin-top:32px">Puedes cerrar esta ventana y volver a la app.</p>
+      </body>
+      </html>
+    `);
+  } catch (e) {
+    const err = e.response?.data ?? { message: e.message };
+    console.error('[meta-oauth] Error:', err);
+    res.status(500).send(
+      `<html><body style="font-family:sans-serif;padding:40px;background:#0f172a;color:#e2e8f0">
+       <h1 style="color:#ef4444">Error al conectar Meta</h1>
+       <pre style="background:#1e293b;padding:16px;border-radius:8px">${JSON.stringify(err, null, 2)}</pre>
+       </body></html>`
+    );
+  }
 });
 
 app.post('/disconnect', async (_req, res) => {

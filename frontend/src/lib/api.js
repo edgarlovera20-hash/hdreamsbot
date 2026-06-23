@@ -44,3 +44,7 @@ export const fetchConversaciones = (params) =>
   http.get('/conversaciones',         { params }).then((r) => r.data);
 export const fetchMensajes = (wa_id, params) =>
   http.get('/conversaciones/mensajes', { params: { ...params, wa_id } }).then((r) => r.data);
+
+// Config pública y estado Meta
+export const fetchConfig     = () => axios.get(`${BASE}/config`).then((r) => r.data);
+export const fetchMetaStatus = () => http.get('/meta-status').then((r) => r.data);
