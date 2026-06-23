@@ -1,0 +1,45 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-80}:80"
+    volumes:
+      - .:/var/www/hdreams-backend:ro
+      - ./nginx.api.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+
+  php:
+    build: .
+    restart: unless-stopped
+    env_file: ./.env
+    volumes:
+      - .:/var/www/hdreams-backend
+    depends_on:
+      - mysql
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: ./.env
+    volumes:
+      - .:/var/www/hdreams-backend
+    command: sh -c "crontab /var/www/hdreams-backend/docker/crontab && crond -f -l 2"
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-hdreams}
+      MYSQL_USER: ${DB_USER:-hdreams}
+      MYSQL_PASSWORD: ${DB_PASS:-hdreams_pass}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-root_pass_seguro}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  mysql_data:

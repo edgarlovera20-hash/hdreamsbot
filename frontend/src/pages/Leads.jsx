@@ -1,22 +1,24 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, RefreshCw } from 'lucide-react';
 import { fetchLeads } from '../lib/api';
 import { Badge } from '../components/ui/Badge';
+import { useSession } from '../context/SessionContext';
 
 const ESTADOS  = ['nuevo','contactado','calificado','entrevista_agendada','entrevista_realizada','contratado','rechazado','no_interesado'];
 const CANALES  = ['whatsapp','messenger','instagram','facebook','gmail','telegram'];
-const EMPRESA  = 1;
-
 export default function Leads() {
+  const { activeCompanyId: empresaId } = useSession();
   const [estado,  setEstado]  = useState('');
   const [canal,   setCanal]   = useState('');
   const [search,  setSearch]  = useState('');
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey:  ['leads', EMPRESA, estado, canal],
-    queryFn:   () => fetchLeads({ empresa_id: EMPRESA, estado: estado || undefined, canal: canal || undefined, limite: 200 }),
+    queryKey:  ['leads', empresaId, estado, canal],
+    queryFn:   () => fetchLeads({ empresa_id: empresaId, estado: estado || undefined, canal: canal || undefined, limite: 200 }),
+    enabled: Boolean(empresaId),
     staleTime: 30_000,
   });
 
@@ -125,15 +127,15 @@ export default function Leads() {
                       className="hover:bg-surfaceHover transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <Link to={`/leads/${lead.id}`} className="flex items-center gap-2 group">
                           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                             {(lead.nombre || '?')[0].toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-medium text-text truncate max-w-36">{lead.nombre ?? '—'}</p>
+                            <p className="font-medium text-text truncate max-w-36 group-hover:text-primary transition-colors">{lead.nombre ?? '—'}</p>
                             {lead.edad && <p className="text-xs text-textMuted">{lead.edad} años</p>}
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-textMuted">
                         <div>

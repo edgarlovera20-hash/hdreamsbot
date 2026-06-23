@@ -7,27 +7,30 @@ class LeadScorerIA
     private int     $empresa_id;
     private int     $seccion_id;
     private \mysqli $mysqli;
-    private string  $openai_key;
+    private RecruitmentFlowService $flow;
+    private AIClient $aiClient;
 
     public function __construct(int $empresa_id, int $seccion_id, \mysqli $mysqli)
     {
         $this->empresa_id = $empresa_id;
         $this->seccion_id = $seccion_id;
         $this->mysqli     = $mysqli;
-        $this->openai_key = $_ENV['OPENAI_API_KEY'] ?? '';
+        $this->flow       = new RecruitmentFlowService();
+        $this->aiClient   = new AIClient();
     }
 
     public function calcularScore(int $lead_id): ?array
     {
         $lead = $this->mysqli
-            ->query("SELECT l.*, s.system_prompt FROM leads l JOIN secciones s ON l.seccion_id=s.id WHERE l.id=$lead_id")
+            ->query("SELECT l.*, s.system_prompt, s.nombre AS seccion_nombre, s.slug AS seccion_slug
+                     FROM leads l JOIN secciones s ON l.seccion_id=s.id WHERE l.id=$lead_id")
             ->fetch_assoc();
 
         if (!$lead) return null;
 
         $historico = $this->obtenerDatosHistoricos();
         $prompt    = $this->construirPrompt($lead, $historico);
-        $resultado = $this->llamarGPT4($prompt);
+        $resultado = $this->llamarModelo($prompt);
 
         $this->guardarScores($lead_id, $resultado);
         $this->asignarColaPrioridad($lead_id, $resultado);
@@ -58,6 +61,14 @@ class LeadScorerIA
         $msgs     = $lead['mensajes_recibidos'];
         $meta     = json_decode($lead['metadata'] ?? '{}', true);
         $edadProm = round($hist['edad_prom'] ?? 26);
+        $vacancy  = $this->flow->getVacancyProfile($lead['seccion_slug'] ?: $lead['seccion_nombre'] ?: null);
+        $vacancyRequirements = $vacancy ? implode(', ', $vacancy['requirements'] ?? []) : 'No especificados';
+        $vacancyActivities   = $vacancy ? implode(', ', $vacancy['activities'] ?? []) : 'No especificadas';
+        $vacancyAgeMin       = $vacancy['age_min'] ?? 17;
+        $vacancyAgeMax       = $vacancy['age_max'] ?? 40;
+        $vacancyName         = $vacancy['name'] ?? ($lead['seccion_nombre'] ?? 'General');
+        $ciudad              = $meta['ciudad'] ?? 'No especificada';
+        $experiencia         = $meta['experiencia'] ?? 'No especificada';
 
         return <<<PROMPT
 Analiza este lead de reclutamiento y asigna scores 0-100:
@@ -70,8 +81,14 @@ DATOS LEAD:
 - Teléfono registrado: {$this->yesNo(!empty($lead['telefono']))}
 - Email registrado: {$this->yesNo(!empty($lead['email']))}
 - CV adjunto: {$this->yesNo(isset($meta['cv']))}
+- Ciudad: $ciudad
+- Experiencia declarada: $experiencia
 
 HISTÓRICO EMPRESA: Edad promedio contratados = $edadProm años
+VACANTE OBJETIVO: $vacancyName
+RANGO DE EDAD ESPERADO: $vacancyAgeMin a $vacancyAgeMax
+REQUISITOS CLAVE: $vacancyRequirements
+ACTIVIDADES CLAVE: $vacancyActivities
 
 INSTRUCCIONES:
 1. score_candidato (0-100): probabilidad de que cumpla requisitos básicos
@@ -86,7 +103,7 @@ Responde ÚNICAMENTE JSON válido:
 PROMPT;
     }
 
-    private function llamarGPT4(string $prompt): array
+    private function llamarModelo(string $prompt): array
     {
         $fallback = [
             'score_candidato'    => 0,
@@ -97,44 +114,10 @@ PROMPT;
             'razonamiento'       => 'Scoring pendiente — API no disponible.',
         ];
 
-        if (!$this->openai_key) return $fallback;
-
-        $ch = curl_init('https://api.openai.com/v1/chat/completions');
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 20,
-            CURLOPT_HTTPHEADER     => [
-                'Authorization: Bearer ' . $this->openai_key,
-                'Content-Type: application/json',
-            ],
-            CURLOPT_POSTFIELDS => json_encode([
-                'model'           => 'gpt-4o',
-                'messages'        => [['role' => 'user', 'content' => $prompt]],
-                'temperature'     => 0.3,
-                'response_format' => ['type' => 'json_object'],
-            ]),
-        ]);
-
-        $raw    = curl_exec($ch);
-        $curlErr = curl_error($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($curlErr || !$raw) {
-            error_log("[LeadScorerIA] curl error: $curlErr");
+        $r = $this->aiClient->chatJson($prompt);
+        if (!$r) {
             return $fallback;
         }
-
-        $response = json_decode($raw, true);
-
-        if ($status !== 200 || !isset($response['choices'][0]['message']['content'])) {
-            $apiErr = $response['error']['message'] ?? "HTTP $status";
-            error_log("[LeadScorerIA] OpenAI error: $apiErr");
-            return $fallback;
-        }
-
-        $r = json_decode($response['choices'][0]['message']['content'], true) ?? [];
 
         return [
             'score_candidato'    => (float) ($r['score_candidato']    ?? 0),

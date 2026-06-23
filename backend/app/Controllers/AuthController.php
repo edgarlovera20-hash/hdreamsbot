@@ -2,121 +2,147 @@
 
 namespace App\Controllers;
 
+use App\Middleware\AuthMiddleware;
+use App\Services\AuditService;
+
 class AuthController
 {
-    public function __construct(private \mysqli $db) {}
+    private \mysqli $db;
+    private AuditService $audit;
+
+    public function __construct(\mysqli $db)
+    {
+        $this->db = $db;
+        $this->audit = new AuditService($db);
+    }
 
     public function login(): void
     {
-        $body  = json_decode(file_get_contents('php://input'), true) ?? [];
-        $email = trim($body['email'] ?? '');
-        $pass  = $body['password'] ?? '';
+        $body = json_decode(file_get_contents('php://input'), true);
+        $email = mb_strtolower(trim((string) ($body['email'] ?? '')));
+        $password = (string) ($body['password'] ?? '');
 
-        if (!$email || !$pass) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Email y contraseña requeridos']);
+        if ($email === '' || $password === '') {
+            $this->json(['error' => 'email y password son requeridos'], 400);
             return;
         }
 
+        $emailEsc = $this->db->real_escape_string($email);
+        $user = $this->db->query(
+            "SELECT id, nombre, email, password_sha256, activo, is_superadmin
+             FROM app_users
+             WHERE email = '$emailEsc'
+             LIMIT 1"
+        )?->fetch_assoc();
+
+        if (!$user || !(int) $user['activo']) {
+            $this->json(['error' => 'Credenciales inválidas'], 401);
+            return;
+        }
+
+        $passwordHash = hash('sha256', $password);
+        if (!hash_equals((string) $user['password_sha256'], $passwordHash)) {
+            $this->json(['error' => 'Credenciales inválidas'], 401);
+            return;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
         $stmt = $this->db->prepare(
-            'SELECT id, password_hash, nombre, rol FROM usuarios WHERE email = ? AND activo = 1'
+            "INSERT INTO auth_sessions (user_id, session_token, expires_at, last_seen_at)
+             VALUES (?, ?, ?, NOW())"
         );
-        $stmt->bind_param('s', $email);
+        $userId = (int) $user['id'];
+        $stmt->bind_param('iss', $userId, $token, $expiresAt);
         $stmt->execute();
-        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-        if (!$user || !password_verify($pass, $user['password_hash'])) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Credenciales incorrectas']);
-            return;
-        }
-
-        $stmt2 = $this->db->prepare('SELECT id, nombre FROM empresas WHERE activo = 1 ORDER BY nombre');
-        $stmt2->execute();
-        $empresas   = $stmt2->get_result()->fetch_all(MYSQLI_ASSOC);
-        $empresa_id = $empresas[0]['id'] ?? 1;
-
-        $token   = bin2hex(random_bytes(32));
-        $expires = date('Y-m-d H:i:s', strtotime('+8 hours'));
-
-        $stmt3 = $this->db->prepare(
-            'INSERT INTO sesiones (token, usuario_id, empresa_id, expires_at) VALUES (?, ?, ?, ?)'
-        );
-        $stmt3->bind_param('siis', $token, $user['id'], $empresa_id, $expires);
-        $stmt3->execute();
-
-        echo json_encode([
-            'token'      => $token,
-            'user'       => ['id' => $user['id'], 'nombre' => $user['nombre'], 'rol' => $user['rol']],
-            'empresas'   => $empresas,
-            'empresa_id' => $empresa_id,
+        $this->audit->log($userId, null, 'auth.login', 'app_user', $userId, [
+            'email' => $email,
         ]);
-    }
 
-    public function logout(): void
-    {
-        $token = $this->extractToken();
-        if ($token) {
-            $stmt = $this->db->prepare('DELETE FROM sesiones WHERE token = ?');
-            $stmt->bind_param('s', $token);
-            $stmt->execute();
-        }
-        echo json_encode(['ok' => true]);
+        $this->json($this->buildSessionPayload($userId, $token));
     }
 
     public function me(): void
     {
-        $token = $this->extractToken();
-        if (!$token) {
-            http_response_code(401);
-            echo json_encode(['error' => 'No autenticado']);
+        $current = AuthMiddleware::currentUser();
+        if (!$current) {
+            $this->json(['error' => 'No autenticado'], 401);
             return;
         }
 
-        $stmt = $this->db->prepare(
-            'SELECT u.id, u.nombre, u.email, u.rol, s.empresa_id
-             FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
-             WHERE s.token = ? AND s.expires_at > NOW()'
+        $token = AuthMiddleware::currentSessionToken();
+        $this->json($this->buildSessionPayload((int) $current['id'], $token));
+    }
+
+    public function logout(): void
+    {
+        $token = AuthMiddleware::currentSessionToken();
+        if ($token) {
+            $tokenEsc = $this->db->real_escape_string($token);
+            $this->db->query("DELETE FROM auth_sessions WHERE session_token = '$tokenEsc'");
+        }
+
+        $current = AuthMiddleware::currentUser();
+        $this->audit->log((int) ($current['id'] ?? 0), null, 'auth.logout', 'app_user', $current['id'] ?? null);
+
+        $this->json(['ok' => true]);
+    }
+
+    private function buildSessionPayload(int $userId, ?string $sessionToken): array
+    {
+        $user = $this->db->query(
+            "SELECT id, nombre, email, is_superadmin
+             FROM app_users
+             WHERE id = $userId
+             LIMIT 1"
+        )?->fetch_assoc();
+
+        $companies = [];
+        $result = $this->db->query(
+            "SELECT auc.id AS user_company_id, auc.empresa_id, auc.role, auc.recruiter_id,
+                    e.nombre AS empresa_nombre,
+                    r.nombre AS recruiter_nombre
+             FROM app_user_companies auc
+             JOIN empresas e ON e.id = auc.empresa_id
+             LEFT JOIN recruiters r ON r.id = auc.recruiter_id
+             WHERE auc.user_id = $userId
+             ORDER BY e.nombre ASC"
         );
-        $stmt->bind_param('s', $token);
-        $stmt->execute();
-        $user = $stmt->get_result()->fetch_assoc();
 
-        if (!$user) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Sesión expirada']);
-            return;
+        while ($row = $result?->fetch_assoc()) {
+            $overrides = [];
+            $userCompanyId = (int) ($row['user_company_id'] ?? 0);
+            $overridesResult = $this->db->query(
+                "SELECT permission_key AS `key`, effect
+                 FROM app_user_company_permissions
+                 WHERE user_company_id = $userCompanyId"
+            );
+            while ($override = $overridesResult?->fetch_assoc()) {
+                $overrides[] = $override;
+            }
+
+            $row['permissions'] = AuthMiddleware::applyPermissionOverrides(
+                AuthMiddleware::permissionsForRole((string) ($row['role'] ?? 'viewer')),
+                $overrides
+            );
+            $row['permission_overrides'] = $overrides;
+            $companies[] = $row;
         }
 
-        $stmt2 = $this->db->prepare('SELECT id, nombre FROM empresas WHERE activo = 1 ORDER BY nombre');
-        $stmt2->execute();
-        $empresas = $stmt2->get_result()->fetch_all(MYSQLI_ASSOC);
-
-        echo json_encode(['user' => $user, 'empresas' => $empresas]);
+        return [
+            'session_token' => $sessionToken,
+            'user' => $user,
+            'companies' => $companies,
+            'default_company_id' => (int) ($companies[0]['empresa_id'] ?? 0),
+        ];
     }
 
-    public function switchEmpresa(): void
+    private function json(mixed $data, int $status = 200): void
     {
-        $token      = $this->extractToken();
-        $body       = json_decode(file_get_contents('php://input'), true) ?? [];
-        $empresa_id = (int)($body['empresa_id'] ?? 0);
-
-        if (!$token || !$empresa_id) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Datos requeridos']);
-            return;
-        }
-
-        $stmt = $this->db->prepare('UPDATE sesiones SET empresa_id = ? WHERE token = ?');
-        $stmt->bind_param('is', $empresa_id, $token);
-        $stmt->execute();
-
-        echo json_encode(['ok' => true, 'empresa_id' => $empresa_id]);
-    }
-
-    private function extractToken(): ?string
-    {
-        $h = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        return str_starts_with($h, 'Bearer ') ? substr($h, 7) : null;
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 }
