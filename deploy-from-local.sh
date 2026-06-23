@@ -16,6 +16,7 @@ tar -czf - \
   --exclude='./frontend/node_modules' \
   --exclude='./frontend/dist' \
   --exclude='./backend/vendor' \
+  --exclude='./baileys/node_modules' \
   --exclude='./*.log' \
   -C "$LOCAL_DIR" . \
   | vssh "$VPS" "cd $APP_DIR && tar -xzf -"
@@ -30,4 +31,6 @@ echo "==> [4/4] Verificando estado ..."
 vssh "$VPS" "cd $APP_DIR && docker compose ps"
 
 echo ""
-echo "Listo. Abre https://heavenlydreams.com.mx"
+echo "Listo. Abre https://bot.heavenlydreams.com.mx"
+echo ""
+echo "WhatsApp QR: https://bot.heavenlydreams.com.mx/whatsapp"

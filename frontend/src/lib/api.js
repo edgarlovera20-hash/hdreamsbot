@@ -38,3 +38,9 @@ export const fetchKPIHoras  = (params) => http.get('/kpis/horas',     { params }
 export const fetchAbTests   = (params) => http.get('/kpis/ab',        { params }).then((r) => r.data);
 export const fetchHorasPico = (params) => http.get('/kpis/horas-pico',{ params }).then((r) => r.data);
 export const fetchLeads     = (params) => http.get('/leads',          { params }).then((r) => r.data);
+
+// Conversaciones WhatsApp
+export const fetchConversaciones = (params) =>
+  http.get('/conversaciones',         { params }).then((r) => r.data);
+export const fetchMensajes = (wa_id, params) =>
+  http.get('/conversaciones/mensajes', { params: { ...params, wa_id } }).then((r) => r.data);

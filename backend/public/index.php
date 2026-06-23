@@ -3,6 +3,7 @@ require __DIR__ . '/../vendor/autoload.php';
 use App\Controllers\AuthController;
 use App\Controllers\KPIsController;
 use App\Controllers\LeadController;
+use App\Controllers\ConversacionesController;
 use App\Middleware\AuthMiddleware;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
@@ -59,8 +60,10 @@ $routes = [
     'GET /api/kpis/horas'      => [KPIsController::class, 'kpiPorHora'],
     'GET /api/kpis/horas-pico' => [KPIsController::class, 'horasPico'],
     'GET /api/kpis/ab'         => [KPIsController::class, 'abTests'],
-    'GET /api/leads'           => [LeadController::class, 'index'],
-    'GET /api/leads/cola'      => [LeadController::class, 'colaPrioridad'],
+    'GET /api/leads'                        => [LeadController::class, 'index'],
+    'GET /api/leads/cola'                   => [LeadController::class, 'colaPrioridad'],
+    'GET /api/conversaciones'               => [ConversacionesController::class, 'index'],
+    'GET /api/conversaciones/mensajes'      => [ConversacionesController::class, 'mensajes'],
 ];
 
 if (isset($routes[$key])) {

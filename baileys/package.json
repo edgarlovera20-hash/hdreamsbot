@@ -1,0 +1,12 @@
+{
+  "name": "hdreams-baileys",
+  "version": "1.0.0",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "axios": "^1.6.0",
+    "express": "^4.18.2",
+    "pino": "^9.0.0",
+    "qrcode": "^1.5.3"
+  }
+}

@@ -1,21 +1,27 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { LayoutDashboard, Users, BarChart2, LogOut, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart2, LogOut, ChevronDown, MessageSquare, Smartphone, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Dashboard from './pages/Dashboard';
-import Leads     from './pages/Leads';
-import Stats     from './pages/Stats';
-import Login     from './pages/Login';
+import Dashboard      from './pages/Dashboard';
+import Leads          from './pages/Leads';
+import Stats          from './pages/Stats';
+import Login          from './pages/Login';
+import Conversaciones from './pages/Conversaciones';
+import WhatsApp       from './pages/WhatsApp';
+import Configuracion  from './pages/Configuracion';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
 
 const NAV = [
-  { to: '/',       label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/leads',  label: 'Leads',     icon: Users },
-  { to: '/stats',  label: 'Stats',     icon: BarChart2 },
+  { to: '/',               label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/leads',          label: 'Leads',     icon: Users },
+  { to: '/conversaciones', label: 'Bandeja',   icon: MessageSquare },
+  { to: '/stats',          label: 'Stats',     icon: BarChart2 },
+  { to: '/whatsapp',       label: 'WhatsApp',  icon: Smartphone },
+  { to: '/configuracion',  label: 'Config',    icon: Settings },
 ];
 
 function ProtectedRoute({ children }) {
@@ -147,9 +153,12 @@ export default function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Routes>
-                      <Route path="/"      element={<Dashboard />} />
-                      <Route path="/leads" element={<Leads />} />
-                      <Route path="/stats" element={<Stats />} />
+                      <Route path="/"               element={<Dashboard />} />
+                      <Route path="/leads"          element={<Leads />} />
+                      <Route path="/conversaciones" element={<Conversaciones />} />
+                      <Route path="/stats"          element={<Stats />} />
+                      <Route path="/whatsapp"       element={<WhatsApp />} />
+                      <Route path="/configuracion"  element={<Configuracion />} />
                     </Routes>
                   </Layout>
                 </ProtectedRoute>

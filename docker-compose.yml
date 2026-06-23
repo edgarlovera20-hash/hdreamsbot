@@ -82,6 +82,18 @@ services:
     depends_on:
       - php
 
+  baileys:
+    build: ./baileys
+    restart: unless-stopped
+    environment:
+      PHP_API_URL: http://nginx:8080
+      BAILEYS_SECRET: ${BAILEYS_SECRET}
+      BAILEYS_URL: http://baileys:4000
+    volumes:
+      - baileys_auth:/app/auth
+    networks:
+      - internal
+
 networks:
   internal:
     driver: bridge
@@ -91,3 +103,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  baileys_auth:

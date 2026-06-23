@@ -5,6 +5,7 @@ backend/.env
 # Dependencias
 node_modules/
 frontend/node_modules/
+baileys/node_modules/
 backend/vendor/
 
 # Build
