@@ -126,6 +126,20 @@ app.post('/send', async (req, res) => {
   }
 });
 
+// Meta OAuth callback
+app.get('/auth/meta/callback', (req, res) => {
+  console.log('[meta-oauth] callback recibido:', req.query);
+  if (req.query.error) {
+    return res.status(400).send(`<h1>Error OAuth</h1><pre>${req.query.error_description ?? req.query.error}</pre>`);
+  }
+  // Si es prueba de ruta (sin code)
+  if (!req.query.code) {
+    return res.send('Meta OAuth OK');
+  }
+  // TODO: intercambiar code por access token y guardarlo en DB
+  res.send(`<h1>Conexión Meta completada</h1><pre>${JSON.stringify(req.query, null, 2)}</pre>`);
+});
+
 app.post('/disconnect', async (_req, res) => {
   clearTimeout(reconnectTimer);
   try { await sock?.logout(); } catch { /* ignorar */ }
